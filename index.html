@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원자 결합 시뮬레이션</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #00d4ff;
+            text-shadow: 0 0 20px #00d4ff;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 11px 26px;
+            border: 2px solid #00d4ff;
+            background: transparent;
+            color: #00d4ff;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active { background: #00d4ff; color: #0f0c29; }
+        .tab-btn:hover { background: rgba(0,212,255,0.2); }
+        .tab-btn.summary-tab { border-color: #ffd700; color: #ffd700; }
+        .tab-btn.summary-tab.active { background: #ffd700; color: #0f0c29; }
+        .tab-btn.summary-tab:hover { background: rgba(255,215,0,0.2); }
+
+        .simulation-box {
+            display: none;
+            max-width: 960px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 28px;
+            backdrop-filter: blur(10px);
+        }
+
+        .simulation-box.active { display: block; }
+
+        .sim-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #ffd700;
+        }
+
+        .sim-desc {
+            font-size: 0.88rem;
+            color: #ccc;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            background: rgba(255,215,0,0.08);
+            padding: 11px 15px;
+            border-radius: 10px;
+            border-left: 3px solid #ffd700;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.12);
+            max-width: 100%;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .step-dot {
+            width: 11px; height: 11px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .step-dot.active { background: #00d4ff; border-color: #00d4ff; box-shadow: 0 0 8px #00d4ff; }
+        .step-dot.done { background: #00ff88; border-color: #00ff88; }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .step-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .next-btn {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,212,255,0.4);
+        }
+
+        .next-btn:hover { transform: translateY(-2px); }
+        .next-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .reset-btn {
+            background: linear-gradient(135deg, #ff6b6b, #cc0000);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+        }
+
+        .reset-btn:hover { transform: translateY(-2px); }
+
+        .summary-btn {
+            background: linear-gradient(135deg, #ffd700, #cc9900);
+            color: #0f0c29;
+            box-shadow: 0 4px 15px rgba(255,215,0,0.4);
+        }
+
+        .summary-btn:hover { transform: translateY(-2px); }
+
+        .info-box {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 12px;
+            padding: 14px 18px;
+            text-align: center;
+            font-size: 0.92rem;
+            color: #e0e0e0;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.65;
+        }
+
+        .info-box span { color: #00d4ff; font-weight: bold; }
+
+        /* ====== 요약 페이지 ====== */
+        .summary-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .summary-header h2 {
+            font-size: 1.7rem;
+            color: #ffd700;
+            text-shadow: 0 0 15px rgba(255,215,0,0.4);
+            margin-bottom: 8px;
+        }
+
+        .summary-header p { color: #aaa; font-size: 0.88rem; }
+
+        .compare-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .compare-card {
+            border-radius: 16px;
+            padding: 22px;
+        }
+
+        .compare-card.ionic {
+            background: linear-gradient(135deg, rgba(74,144,217,0.18), rgba(74,144,217,0.05));
+            border: 2px solid rgba(74,144,217,0.45);
+        }
+
+        .compare-card.covalent {
+            background: linear-gradient(135deg, rgba(68,221,136,0.18), rgba(68,221,136,0.05));
+            border: 2px solid rgba(68,221,136,0.45);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .card-title.ionic { color: #88bbff; }
+        .card-title.covalent { color: #88ffbb; }
+
+        .card-items { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+
+        .card-items li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.87rem;
+            color: #ddd;
+            line-height: 1.5;
+        }
+
+        .card-items li .icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+        .compare-table-wrap { margin-bottom: 25px; overflow-x: auto; }
+
+        .compare-table-wrap h3 {
+            font-size: 1.1rem;
+            color: #ffd700;
+            margin-bottom: 13px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 13px;
+            overflow: hidden;
+            font-size: 0.88rem;
+        }
+
+        thead tr { background: rgba(255,215,0,0.12); }
+
+        thead th {
+            padding: 13px 16px;
+            text-align: center;
+            font-size: 0.95rem;
+            border-bottom: 2px solid rgba(255,215,0,0.25);
+        }
+
+        thead th:first-child { text-align: left; color: #ffd700; }
+        thead th.ionic-head { color: #88bbff; }
+        thead th.covalent-head { color: #88ffbb; }
+
+        tbody tr:nth-child(odd) { background: rgba(255,255,255,0.04); }
+        tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+        tbody tr:hover { background: rgba(255,215,0,0.07); }
+
+        tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+            color: #ddd;
+            font-size: 0.87rem;
+            line-height: 1.5;
+        }
+
+        tbody td:first-child { text-align: left; font-weight: bold; color: #ffd700; }
+        tbody td.ionic-val { color: #aaccff; }
+        tbody td.covalent-val { color: #aaffcc; }
+
+        .examples-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .example-box { border-radius: 13px; padding: 18px; }
+
+        .example-box.ionic {
+            background: rgba(74,144,217,0.1);
+            border: 1px solid rgba(74,144,217,0.28);
+        }
+
+        .example-box.covalent {
+            background: rgba(68,221,136,0.1);
+            border: 1px solid rgba(68,221,136,0.28);
+        }
+
+        .example-box h4 {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ionic h4 { color: #88bbff; }
+        .covalent h4 { color: #88ffbb; }
+
+        .example-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+        .chip {
+            padding: 5px 12px;
+            border-radius: 18px;
+            font-size: 0.82rem;
+            font-weight: bold;
+        }
+
+        .ionic .chip {
+            background: rgba(74,144,217,0.22);
+            border: 1px solid rgba(74,144,217,0.38);
+            color: #cce0ff;
+        }
+
+        .covalent .chip {
+            background: rgba(68,221,136,0.22);
+            border: 1px solid rgba(68,221,136,0.38);
+            color: #ccffe8;
+        }
+
+        .key-points {
+            background: rgba(255,215,0,0.07);
+            border: 2px solid rgba(255,215,0,0.28);
+            border-radius: 15px;
+            padding: 22px;
+            margin-bottom: 25px;
+        }
+
+        .key-points h3 {
+            color: #ffd700;
+            font-size: 1.05rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 13px;
+        }
+
+        .key-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 11px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .key-item .key-icon { font-size: 1.8rem; margin-bottom: 7px; }
+        .key-item .key-label { font-size: 0.75rem; color: #aaa; margin-bottom: 6px; font-weight: bold; }
+        .key-item .key-value { font-size: 0.8rem; font-weight: bold; line-height: 1.5; }
+        .key-item .key-value.ionic { color: #88bbff; }
+        .key-item .key-value.covalent { color: #88ffbb; }
+        .key-item .vs { color: #555; font-size: 0.75rem; margin: 4px 0; }
+
+        .summary-footer {
+            display: flex;
+            justify-content: center;
+            gap: 13px;
+            flex-wrap: wrap;
+        }
+
+        .footer-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .footer-btn.ionic-go {
+            background: linear-gradient(135deg, #4a90d9, #2266aa);
+            color: white;
+            box-shadow: 0 4px 12px rgba(74,144,217,0.4);
+        }
+
+        .footer-btn.covalent-go {
+            background: linear-gradient(135deg, #44dd88, #229955);
+            color: white;
+            box-shadow: 0 4px 12px rgba(68,221,136,0.4);
+        }
+
+        .footer-btn:hover { transform: translateY(-2px); }
+
+        .new-badge {
+            background: #ff4757;
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 9px;
+            margin-left: 4px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        @media (max-width: 600px) {
+            .compare-cards, .examples-section { grid-template-columns: 1fr; }
+            .key-grid { grid-template-columns: 1fr 1fr; }
+            h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>⚛️ 원자 결합 시뮬레이션</h1>
+<p class="subtitle">이온결합과 공유결합의 원리를 눈으로 직접 확인해보세요!</p>
+
+<div class="tab-container">
+    <button class="tab-btn active" id="tab-ionic" onclick="switchTab('ionic',this)">🔵 이온결합 (Na + Cl)</button>
+    <button class="tab-btn" id="tab-covalent" onclick="switchTab('covalent',this)">🟢 공유결합 (H + H)</button>
+    <button class="tab-btn summary-tab" id="tab-summary" onclick="switchTab('summary',this)">
+        📊 결합 비교 요약<span class="new-badge">NEW</span>
+    </button>
+</div>
+
+<!-- ===== 이온결합 ===== -->
+<div id="ionic" class="simulation-box active">
+    <div class="sim-title">🔵 이온결합 (Na + Cl → NaCl)</div>
+    <div class="sim-desc">
+        <strong>이온결합이란?</strong> 금속(Na)이 전자를 <strong>잃어</strong> 양이온(Na⁺)이 되고,
+        비금속(Cl)이 전자를 <strong>얻어</strong> 음이온(Cl⁻)이 된 후,
+        두 이온 사이의 <strong>정전기적 인력</strong>으로 결합하는 방식이에요.
+    </div>
+
+    <div class="step-indicator">
+        <div class="step-dot active" id="ionic-dot-0"></div>
+        <div class="step-dot" id="ionic-dot-1"></div>
+        <div class="step-dot" id="ionic-dot-2"></div>
+        <div class="step-dot" id="ionic-dot-3"></div>
+    </div>
+
+    <canvas id="ionicCanvas" width="900" height="480"></canvas>
+
+    <div class="controls">
+        <button class="step-btn next-btn" id="ionicNextBtn" onclick="ionicNext()">▶ 다음 단계</button>
+        <button class="step-btn reset-btn" onclick="ionicReset()">↺ 처음으로</button>
+        <button class="step-btn summary-btn" onclick="switchTab('summary',document.getElementById('tab-summary'))">📊 비교 요약 보기</button>
+    </div>
+
+    <div class="info-box" id="ionicInfo">
+        <span>▶ 다음 단계</span> 버튼을 눌러 이온결합 과정을 시작하세요!
+    </div>
+</div>
+
+<!-- ===== 공유결합 ===== -->
+<div id="covalent" class="simulation-box">
+    <div class="sim-title">🟢 공유결합 (H + H → H₂)</div>
+    <div class="sim-desc">
+        <strong>공유결합이란?</strong> 두 원자가 전자를 주고받는 것이 아니라,
+        서로의 전자를 <strong>함께 공유</strong>하면서 결합하는 방식이에요.
+        수소 원자 두 개가 각각 전자 1개씩을 내놓아 <strong>공유 전자쌍</strong>을 만들어요.
+    </div>
+
+    <div class="step-indicator">
+        <div class="step-dot active" id="cov-dot-0"></div>
+        <div class="step-dot" id="cov-dot-1"></div>
+        <div class="step-dot" id="cov-dot-2"></div>
+        <div class="step-dot" id="cov-dot-3"></div>
+    </div>
+
+    <canvas id="covalentCanvas" width="900" height="480"></canvas>
+
+    <div class="controls">
+        <button class="step-btn next-btn" id="covalentNextBtn" onclick="covalentNext()">▶ 다음 단계</button>
+        <button class="step-btn reset-btn" onclick="covalentReset()">↺ 처음으로</button>
+        <button class="step-btn summary-btn" onclick="switchTab('summary',document.getElementById('tab-summary'))">📊 비교 요약 보기</button>
+    </div>
+
+    <div class="info-box" id="covalentInfo">
+        <span>▶ 다음 단계</span> 버튼을 눌러 공유결합 과정을 시작하세요!
+    </div>
+</div>
+
+<!-- ===== 요약 ===== -->
+<div id="summary" class="simulation-box">
+    <div class="summary-header">
+        <h2>📊 이온결합 vs 공유결합 비교 정리</h2>
+        <p>두 결합의 핵심 차이를 한눈에 확인하세요!</p>
+    </div>
+
+    <div class="compare-cards">
+        <div class="compare-card ionic">
+            <div class="card-title ionic">🔵 이온결합</div>
+            <ul class="card-items">
+                <li><span class="icon">⚡</span><span><strong>전자 이동:</strong> Na → Cl 으로 전자를 완전히 줘요</span></li>
+                <li><span class="icon">➕➖</span><span><strong>이온 생성:</strong> Na⁺(양이온)과 Cl⁻(음이온)이 생겨요</span></li>
+                <li><span class="icon">🧲</span><span><strong>결합력:</strong> +(양)과 -(음)이 서로 끌어당기는 정전기적 인력이에요</span></li>
+                <li><span class="icon">🌡️</span><span><strong>녹는점:</strong> 높아요 (NaCl: 801°C) — 결합이 매우 강해요</span></li>
+                <li><span class="icon">💧</span><span><strong>물에 녹으면:</strong> 이온으로 분리되어 전기가 통해요</span></li>
+            </ul>
+        </div>
+        <div class="compare-card covalent">
+            <div class="card-title covalent">🟢 공유결합</div>
+            <ul class="card-items">
+                <li><span class="icon">🤝</span><span><strong>전자 공유:</strong> H와 H가 전자 1개씩을 함께 나눠요</span></li>
+                <li><span class="icon">🔮</span><span><strong>분자 생성:</strong> 이온이 아닌 분자(H₂)가 만들어져요</span></li>
+                <li><span class="icon">⚖️</span><span><strong>결합력:</strong> 공유 전자쌍이 두 원자핵 사이에서 잡아당겨요</span></li>
+                <li><span class="icon">🌡️</span><span><strong>녹는점:</strong> 대체로 낮아요 — 분자 사이 힘이 약해요</span></li>
+                <li><span class="icon">💧</span><span><strong>물에 녹으면:</strong> 대부분 전기가 안 통해요 (분자 상태 유지)</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="compare-table-wrap">
+        <h3>📋 핵심 비교표</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>비교 항목</th>
+                    <th class="ionic-head">🔵 이온결합</th>
+                    <th class="covalent-head">🟢 공유결합</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>⚡ 전자의 이동</td>
+                    <td class="ionic-val">한 원자에서 다른 원자로<br>전자가 완전히 이동</td>
+                    <td class="covalent-val">두 원자가 전자를<br>함께 공유</td>
+                </tr>
+                <tr>
+                    <td>🧱 결합하는 원소</td>
+                    <td class="ionic-val">금속 + 비금속<br>(Na + Cl)</td>
+                    <td class="covalent-val">비금속 + 비금속<br>(H + H, H + O)</td>
+                </tr>
+                <tr>
+                    <td>🔮 만들어지는 입자</td>
+                    <td class="ionic-val">이온 (Na⁺, Cl⁻)</td>
+                    <td class="covalent-val">분자 (H₂, H₂O)</td>
+                </tr>
+                <tr>
+                    <td>💧 물에 녹을 때</td>
+                    <td class="ionic-val">이온 분리 → 전기 통함 ⚡</td>
+                    <td class="covalent-val">분자 유지 → 전기 안 통함 🚫</td>
+                </tr>
+                <tr>
+                    <td>🌡️ 녹는점·끓는점</td>
+                    <td class="ionic-val">높음 (NaCl: 801°C)</td>
+                    <td class="covalent-val">낮음 (H₂O: 100°C)</td>
+                </tr>
+                <tr>
+                    <td>🧂 생활 속 예시</td>
+                    <td class="ionic-val">소금, 베이킹소다, 석고</td>
+                    <td class="covalent-val">물, 산소, 이산화탄소, 설탕</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="examples-section">
+        <div class="example-box ionic">
+            <h4>🔵 이온결합 물질</h4>
+            <div class="example-chips">
+                <span class="chip">🧂 NaCl 소금</span>
+                <span class="chip">🧪 KCl 염화칼륨</span>
+                <span class="chip">🦴 CaCO₃ 탄산칼슘</span>
+                <span class="chip">🍞 NaHCO₃ 베이킹소다</span>
+                <span class="chip">💊 MgO 산화마그네슘</span>
+            </div>
+        </div>
+        <div class="example-box covalent">
+            <h4>🟢 공유결합 물질</h4>
+            <div class="example-chips">
+                <span class="chip">💧 H₂O 물</span>
+                <span class="chip">🌬️ O₂ 산소</span>
+                <span class="chip">🌿 CO₂ 이산화탄소</span>
+                <span class="chip">⛽ CH₄ 메탄</span>
+                <span class="chip">🍬 설탕</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="key-points">
+        <h3>💡 시험에 꼭 나오는 핵심 포인트!</h3>
+        <div class="key-grid">
+            <div class="key-item">
+                <div class="key-icon">⚡</div>
+                <div class="key-label">전자는 어떻게 움직여?</div>
+                <div class="key-value ionic">이온결합<br>전자를 줌 (이동)</div>
+                <div class="vs">VS</div>
+                <div class="key-value covalent">공유결합<br>전자를 같이 씀 (공유)</div>
+            </div>
+            <div class="key-item">
+                <div class="key-icon">🧱</div>
+                <div class="key-label">어떤 원소끼리 결합?</div>
+                <div class="key-value ionic">이온결합<br>금속 + 비금속</div>
+                <div class="vs">VS</div>
+                <div class="key-value covalent">공유결합<br>비금속 + 비금속</div>
+            </div>
+            <div class="key-item">
+                <div class="key-icon">🔮</div>
+                <div class="key-label">뭐가 만들어져?</div>
+                <div class="key-value ionic">이온결합<br>이온 결정</div>
+                <div class="vs">VS</div>
+                <div class="key-value covalent">공유결합<br>분자</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-footer">
+        <button class="footer-btn ionic-go" onclick="switchTab('ionic',document.getElementById('tab-ionic'))">
+            🔵 이온결합 다시 보기
+        </button>
+        <button class="footer-btn covalent-go" onclick="switchTab('covalent',document.getElementById('tab-covalent'))">
+            🟢 공유결합 다시 보기
+        </button>
+    </div>
+</div>
+
+<script>
+// =============================================
+//  탭 전환
+// =============================================
+function switchTab(type, btnEl) {
+    document.querySelectorAll('.simulation-box').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(type).classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+}
+
+function setInfo(id, html) { document.getElementById(id).innerHTML = html; }
+
+function updateDots(prefix, step, total) {
+    for (let i = 0; i < total; i++) {
+        const d = document.getElementById(prefix + i);
+        d.classList.remove('active','done');
+        if (i < step) d.classList.add('done');
+        else if (i === step) d.classList.add('active');
+    }
+}
+
+// =============================================
+//  공통 드로잉 유틸
+// =============================================
+function drawShell(ctx, x, y, r, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
+function drawAtomCore(ctx, x, y, r, color, symbol) {
+    // 외부 글로우
+    const g1 = ctx.createRadialGradient(x, y, r*0.4, x, y, r*2.2);
+    g1.addColorStop(0, color + '55');
+    g1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g1;
+    ctx.beginPath(); ctx.arc(x, y, r*2.2, 0, Math.PI*2); ctx.fill();
+    // 원자 구체
+    const g2 = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+    g2.addColorStop(0, lightenHex(color, 80));
+    g2.addColorStop(0.6, color);
+    g2.addColorStop(1, darkenHex(color, 50));
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // 심볼
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${Math.floor(r*0.72)}px Segoe UI`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(symbol, x, y);
+    ctx.shadowBlur = 0;
+}
+
+function lightenHex(hex, amt) {
+    // 단순 색상 밝히기 — rgba 변환
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.min(255,r+amt)},${Math.min(255,g+amt)},${Math.min(255,b+amt)})`;
+}
+
+function darkenHex(hex, amt) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.max(0,r-amt)},${Math.max(0,g-amt)},${Math.max(0,b-amt)})`;
+}
+
+function drawElectronBig(ctx, x, y, color, size) {
+    // 글로우
+    const g = ctx.createRadialGradient(x, y, 0, x, y, size*2.8);
+    g.addColorStop(0, color + 'ff');
+    g.addColorStop(0.4, color + 'aa');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, size*2.8, 0, Math.PI*2); ctx.fill();
+    // 코어
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // e- 라벨
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.font = `bold ${Math.floor(size*0.85)}px Segoe UI`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('e⁻', x, y);
+}
+
+function getEPos(cx, cy, r, i, total) {
+    const a = (2*Math.PI/total)*i - Math.PI/2;
+    return { x: cx + r*Math.cos(a), y: cy + r*Math.sin(a) };
+}
+
+function drawArrowLine(ctx, x1, y1, x2, y2, color, dashed) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    if (dashed) ctx.setLineDash([8,5]);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.setLineDash([]);
+    const a = Math.atan2(y2-y1, x2-x1);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2-16*Math.cos(a-0.38), y2-16*Math.sin(a-0.38));
+    ctx.lineTo(x2-16*Math.cos(a+0.38), y2-16*Math.sin(a+0.38));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+}
+
+function txt(ctx, x, y, text, color, size, bold) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = `${bold?'bold ':''}${size}px Segoe UI`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 6;
+    ctx.fillText(text, x, y);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+}
+
+function drawCharge(ctx, x, y, charge) {
+    ctx.save();
+    ctx.fillStyle = charge.includes('+') ? '#ff8888' : '#88ccff';
+    ctx.font = 'bold 18px Segoe UI';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 5;
+    ctx.fillText(charge, x, y);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+}
+
+// =============================================
+//  이온결합
+// =============================================
+let ionicStep = 0;
+let ionicAnimId = null;
+let ionicAnimProgress = 0;
+
+const iC = document.getElementById('ionicCanvas');
+const iCtx = iC.getContext('2d');
+const W = iC.width, H = iC.height;
+
+// 원자 중심 위치
+const NA_X = 230, CL_X = 670, CY = H/2;
+
+// Na: 2-8-1  shells r = 70, 115, 155
+const naShellR  = [70, 115, 155];
+const naShellN  = [2, 8, 1];
+// Cl: 2-8-7  shells r = 70, 115, 155
+const clShellR  = [70, 115, 155];
+const clShellN  = [2, 8, 7];
+
+const NA_COL = '#4a90d9';
+const CL_COL = '#d94a4a';
+const E_COL_NA = '#ffff44';
+const E_COL_CL = '#ffaa44';
+const E_SIZE = 11;
+
+function drawNa(ctx, x, y, hideOuter) {
+    drawAtomCore(ctx, x, y, 48, NA_COL, 'Na');
+    naShellR.forEach((r, si) => {
+        drawShell(ctx, x, y, r, '#88bbff', 0.55);
+        let n = naShellN[si];
+        if (si===2 && hideOuter) n = 0;
+        for (let i=0; i<n; i++) {
+            const p = getEPos(x, y, r, i, naShellN[si]);
+            drawElectronBig(ctx, p.x, p.y, E_COL_NA, E_SIZE);
+        }
+    });
+}
+
+function drawCl(ctx, x, y, extraOuter) {
+    drawAtomCore(ctx, x, y, 55, CL_COL, 'Cl');
+    clShellR.forEach((r, si) => {
+        drawShell(ctx, x, y, r, '#ffaa88', 0.55);
+        let n = clShellN[si];
+        if (si===2 && extraOuter) n = 8;
+        for (let i=0; i<n; i++) {
+            const p = getEPos(x, y, r, i, n);
+            drawElectronBig(ctx, p.x, p.y, E_COL_CL, E_SIZE);
+        }
+    });
+}
+
+function drawIonicStep0() {
+    iCtx.clearRect(0,0,W,H);
+    drawNa(iCtx, NA_X, CY, false);
+    drawCl(iCtx, CL_X, CY, false);
+    // 레이블
+    txt(iCtx, NA_X, CY+185, 'Na 원자', '#88bbff', 16, true);
+    txt(iCtx, NA_X, CY+205, '전자 배치: 2 - 8 - 1', '#aaa', 14, false);
+    txt(iCtx, CL_X, CY+185, 'Cl 원자', '#ffaa88', 16, true);
+    txt(iCtx, CL_X, CY+205, '전자 배치: 2 - 8 - 7', '#aaa', 14, false);
+    txt(iCtx, W/2, 30, '⬅  Na와 Cl 원자의 초기 상태  ➡', '#ffd700', 17, true);
+}
+
+function drawIonicStep1() {
+    // 최외각 전자 강조 + 화살표
+    iCtx.clearRect(0,0,W,H);
+    drawNa(iCtx, NA_X, CY, false);
+    drawCl(iCtx, CL_X, CY, false);
+
+    // Na 최외각 전자 위치
+    const ep = getEPos(NA_X, CY, naShellR[2], 0, 1);
+
+    // 강조 링
+    iCtx.save();
+    iCtx.strokeStyle = '#ffffff';
+    iCtx.lineWidth = 3;
+    iCtx.shadowColor = '#ffff00'; iCtx.shadowBlur = 18;
+    iCtx.beginPath(); iCtx.arc(ep.x, ep.y, 22, 0, Math.PI*2); iCtx.stroke();
+    iCtx.restore();
+
+    // 이동 화살표
+    drawArrowLine(iCtx, ep.x+24, ep.y, CL_X - 170, CY - 50, '#ffff00', true);
+
+    // 설명 박스
+    drawInfoBubble(iCtx, W/2, 48,
+        'Na의 최외각 전자(3번 껍질의 전자 1개)가 Cl 쪽으로 이동합니다!', '#ffff00');
+
+    txt(iCtx, ep.x, ep.y - 32, '이 전자가\n이동해요!', '#ffff00', 15, true);
+    txt(iCtx, NA_X, CY+185, 'Na 원자 (최외각 전자: 1개)', '#88bbff', 15, true);
+    txt(iCtx, CL_X, CY+185, 'Cl 원자 (최외각 전자: 7개)', '#ffaa88', 15, true);
+}
+
+// 전자 이동 애니메이션 (step2)
+function animateIonicStep2() {
+    if (ionicAnimId) cancelAnimationFrame(ionicAnimId);
+    ionicAnimProgress = 0;
+
+    function frame() {
+        ionicAnimProgress += 0.018;
+        const t = Math.min(ionicAnimProgress, 1);
+        iCtx.clearRect(0,0,W,H);
+
+        // 원자
+        drawNa(iCtx, NA_X, CY, true);
+        drawCl(iCtx, CL_X, CY, false);
+
+        // 이동 중인 전자 위치 (easing)
+        const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        const startP = getEPos(NA_X, CY, naShellR[2], 0, 1);
+        // 목적지: Cl 8번째 전자 자리
+        const destP = getEPos(CL_X, CY, clShellR[2], 7, 8);
+
+        const ex = startP.x + (destP.x - startP.x) * ease;
+        const ey = startP.y + (destP.y - startP.y) * ease;
+
+        // 궤적 잔상
+        for (let i=1; i<=8; i++) {
+            const tt = Math.max(0, ease - i*0.1);
+            const tx2 = startP.x + (destP.x - startP.x) * tt;
+            const ty2 = startP.y + (destP.y - startP.y) * tt;
+            iCtx.save();
+            iCtx.globalAlpha = (0.6 - i*0.07) * (1-ease*0.5);
+            drawElectronBig(iCtx, tx2, ty2, '#ffff44', E_SIZE*0.7);
+            iCtx.restore();
+        }
+
+        drawElectronBig(iCtx, ex, ey, '#ffff00', E_SIZE*1.15);
+
+        // 진행 텍스트
+        if (t < 1) {
+            txt(iCtx, W/2, 38, '⚡ 전자가 Cl 쪽으로 이동 중...', '#ffff00', 17, true);
+            const pct = Math.floor(t*100);
+            txt(iCtx, W/2, H-20, `이동 진행: ${pct}%`, '#aaa', 14, false);
+        } else {
+            // 완료
+            iCtx.clearRect(0,0,W,H);
+            drawNa(iCtx, NA_X, CY, true);
+            drawCl(iCtx, CL_X, CY, true);
+            drawCharge(iCtx, NA_X+60, CY-60, 'Na⁺');
+            drawCharge(iCtx, CL_X+65, CY-65, 'Cl⁻');
+            txt(iCtx, W/2, 38, '✅ 전자 이동 완료! Na⁺와 Cl⁻ 이온이 생성되었습니다', '#00ff88', 17, true);
+            txt(iCtx, NA_X, CY+185, 'Na⁺ — 양이온 (전자 잃음)', '#ff9999', 15, true);
+            txt(iCtx, CL_X, CY+185, 'Cl⁻ — 음이온 (전자 얻음)', '#99ccff', 15, true);
+            drawElectronBig(iCtx, destP.x, destP.y, '#ffff00', E_SIZE*1.1);
+            return;
+        }
+
+        ionicAnimId = requestAnimationFrame(frame);
+    }
+    ionicAnimId = requestAnimationFrame(frame);
+}
+
+function drawIonicStep3() {
+    iCtx.clearRect(0,0,W,H);
+    const nx = W/2 - 120, cx2 = W/2 + 120;
+
+    // 인력 표시 (양방향 화살표)
+    drawArrowLine(iCtx, nx+68, CY, cx2-78, CY-12, '#ff88ff', false);
+    drawArrowLine(iCtx, cx2-68, CY, nx+78, CY+12, '#ff88ff', false);
+
+    // 결합선
+    iCtx.save();
+    iCtx.strokeStyle = 'rgba(255,150,255,0.35)';
+    iCtx.lineWidth = 28;
+    iCtx.lineCap = 'round';
+    iCtx.beginPath(); iCtx.moveTo(nx+60, CY); iCtx.lineTo(cx2-68, CY); iCtx.stroke();
+    iCtx.restore();
+
+    drawNa(iCtx, nx, CY, true);
+    drawCl(iCtx, cx2, CY, true);
+    drawCharge(iCtx, nx+58, CY-60, 'Na⁺');
+    drawCharge(iCtx, cx2+65, CY-68, 'Cl⁻');
+
+    txt(iCtx, W/2, CY - 12, '정전기적 인력', '#ff88ff', 15, true);
+
+    // 완성 배너
+    iCtx.save();
+    const bw=440, bh=52, bx=W/2-bw/2, by=H-80;
+    const bg = iCtx.createLinearGradient(bx, by, bx+bw, by);
+    bg.addColorStop(0,'rgba(255,215,0,0.22)');
+    bg.addColorStop(0.5,'rgba(255,215,0,0.38)');
+    bg.addColorStop(1,'rgba(255,215,0,0.22)');
+    iCtx.fillStyle = bg;
+    iCtx.strokeStyle = '#ffd700';
+    iCtx.lineWidth = 2;
+    roundRect(iCtx, bx, by, bw, bh, 14);
+    iCtx.fill(); iCtx.stroke();
+    iCtx.restore();
+
+    txt(iCtx, W/2, H-55, '🎉  NaCl 이온결합 완성!  (Na⁺ + Cl⁻)', '#ffd700', 19, true);
+    txt(iCtx, W/2, H-30, '+ 이온과 – 이온 사이의 정전기적 인력 → 이온결합', '#ccc', 14, false);
+    txt(iCtx, W/2, 34, '두 이온이 서로 가까워져 강한 인력으로 결합합니다', '#ff88ff', 16, true);
+}
+
+function drawInfoBubble(ctx, x, y, text, color) {
+    const pw = 680, ph = 44;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x-pw/2, y-ph/2, pw, ph, 12);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    txt(ctx, x, y, text, color, 15, true);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+    ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+    ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+    ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+    ctx.closePath();
+}
+
+const ionicMsgs = [
+    'Na 원자(전자 11개: <span>2-8-1</span>)와 Cl 원자(전자 17개: <span>2-8-7</span>)가 있어요. Na는 최외각 전자가 <span>1개</span>라 불안정해요.',
+    'Na의 <span>3번 껍질 전자 1개</span>가 Cl 쪽으로 이동하려 해요! 흰 원으로 표시된 전자를 잘 보세요.',
+    'Na가 전자 1개를 잃어 <span>Na⁺(양이온)</span>이 되고, Cl이 전자 1개를 얻어 <span>Cl⁻(음이온)</span>이 됐어요! 전자 이동 완료!',
+    '<span>Na⁺(+)</span>와 <span>Cl⁻(–)</span>가 <span>정전기적 인력</span>으로 서로 끌어당겨 <span>NaCl (소금)</span>이 완성됐어요! 🎉'
+];
+
+function ionicNext() {
+    if (ionicStep >= 3) return;
+    ionicStep++;
+    updateDots('ionic-dot-', ionicStep, 4);
+    setInfo('ionicInfo', ionicMsgs[ionicStep]);
+
+    if (ionicStep===1) drawIonicStep1();
+    else if (ionicStep===2) animateIonicStep2();
+    else if (ionicStep===3) drawIonicStep3();
+
+    if (ionicStep===3) {
+        const btn = document.getElementById('ionicNextBtn');
+        btn.textContent='✅ 완료!'; btn.disabled=true;
+    }
+}
+
+function ionicReset() {
+    if (ionicAnimId) { cancelAnimationFrame(ionicAnimId); ionicAnimId=null; }
+    ionicStep=0;
+    const btn = document.getElementById('ionicNextBtn');
+    btn.textContent='▶ 다음 단계'; btn.disabled=false;
+    updateDots('ionic-dot-',0,4);
+    setInfo('ionicInfo','<span>▶ 다음 단계</span> 버튼을 눌러 이온결합 과정을 시작하세요!');
+    drawIonicStep0();
+}
+
+// =============================================
+//  공유결합
+// =============================================
+let covalentStep = 0;
+let covAnimId = null;
+let covAnimProg = 0;
+
+const cC = document.getElementById('covalentCanvas');
+const cCtx = cC.getContext('2d');
+const CW = cC.width, CH = cC.height;
+const CCY = CH/2;
+
+const H1_INIT = 200, H2_INIT = 700;
+const H_COL1 = '#44dd88', H_COL2 = '#44aaff';
+const H_SHELL_R = 75;
+const HE_SIZE = 13;
+
+function drawHydrogen(ctx, x, y, eAngle, col, showShell) {
+    if (showShell) drawShell(ctx, x, y, H_SHELL_R, col, 0.5);
+    drawAtomCore(ctx, x, y, 44, col, 'H');
+    const ex = x + H_SHELL_R * Math.cos(eAngle);
+    const ey = y + H_SHELL_R * Math.sin(eAngle);
+    drawElectronBig(ctx, ex, ey, col==='#44dd88'?'#aaff88':'#88ddff', HE_SIZE);
+    return {ex, ey};
+}
+
+function drawCovStep0() {
+    cCtx.clearRect(0,0,CW,CH);
+    drawHydrogen(cCtx, H1_INIT, CCY, Math.PI*0.25, H_COL1, true);
+    drawHydrogen(cCtx, H2_INIT, CCY, Math.PI*0.75, H_COL2, true);
+    txt(cCtx, H1_INIT, CCY+135, 'H 원자 ①', H_COL1, 16, true);
+    txt(cCtx, H1_INIT, CCY+155, '전자 1개 (1번 껍질)', '#aaa', 14, false);
+    txt(cCtx, H2_INIT, CCY+135, 'H 원자 ②', H_COL2, 16, true);
+    txt(cCtx, H2_INIT, CCY+155, '전자 1개 (1번 껍질)', '#aaa', 14, false);
+    txt(cCtx, CW/2, 34, '두 수소 원자의 초기 상태 — 각자 전자 1개씩', '#ffd700', 17, true);
+}
+
+function animateCovApproach() {
+    if (covAnimId) cancelAnimationFrame(covAnimId);
+    covAnimProg = 0;
+    const targetDist = 220; // 두 원자 중심 간격 목표
+
+    function frame() {
+        covAnimProg += 0.016;
+        const t = Math.min(covAnimProg, 1);
+        const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+
+        const h1x = H1_INIT + (CW/2 - targetDist/2 - H1_INIT)*ease;
+        const h2x = H2_INIT + (CW/2 + targetDist/2 - H2_INIT)*ease;
+
+        cCtx.clearRect(0,0,CW,CH);
+
+        // 접근 화살표 (애니 초반)
+        if (t < 0.7) {
+            drawArrowLine(cCtx, H1_INIT+90, CCY, CW/2-80, CCY, 'rgba(255,255,255,0.6)', true);
+            drawArrowLine(cCtx, H2_INIT-90, CCY, CW/2+80, CCY, 'rgba(255,255,255,0.6)', true);
+        }
+
+        drawHydrogen(cCtx, h1x, CCY, Math.PI*0.25*(1-ease*0.5), H_COL1, true);
+        drawHydrogen(cCtx, h2x, CCY, Math.PI*(1 - 0.25*(1-ease*0.5)), H_COL2, true);
+
+        if (t < 1) {
+            txt(cCtx, CW/2, 34, '⚡ 두 수소 원자가 서로 가까워지고 있어요!', '#ffffff', 17, true);
+            txt(cCtx, CW/2, CH-18, `접근 진행: ${Math.floor(t*100)}%`, '#aaa', 14, false);
+        } else {
+            txt(cCtx, CW/2, 34, '✅ 두 원자가 충분히 가까워졌어요!', '#00ff88', 17, true);
+            txt(cCtx, h1x, CCY+135, 'H 원자 ①', H_COL1, 15, true);
+            txt(cCtx, h2x, CCY+135, 'H 원자 ②', H_COL2, 15, true);
+            return;
+        }
+
+        covAnimId = requestAnimationFrame(frame);
+    }
+    covAnimId = requestAnimationFrame(frame);
+}
+
+function animateCovShare() {
+    if (covAnimId) cancelAnimationFrame(covAnimId);
+    covAnimProg = 0;
+
+    const h1x = CW/2 - 110, h2x = CW/2 + 110;
+
+    // 전자 시작 위치
+    const e1Start = { x: h1x + H_SHELL_R*Math.cos(Math.PI*0.12), y: CCY + H_SHELL_R*Math.sin(Math.PI*0.12) };
+    const e2Start = { x: h2x + H_SHELL_R*Math.cos(Math.PI*0.88), y: CCY + H_SHELL_R*Math.sin(Math.PI*0.88) };
+    // 공유 전자쌍 목적지
+    const e1End = { x: CW/2 - 16, y: CCY - 16 };
+    const e2End = { x: CW/2 + 16, y: CCY + 16 };
+
+    function frame() {
+        covAnimProg += 0.015;
+        const t = Math.min(covAnimProg, 1);
+        const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+
+        cCtx.clearRect(0,0,CW,CH);
+        drawShell(cCtx, h1x, CCY, H_SHELL_R, H_COL1, 0.4);
+        drawShell(cCtx, h2x, CCY, H_SHELL_R, H_COL2, 0.4);
+        drawAtomCore(cCtx, h1x, CCY, 44, H_COL1, 'H');
+        drawAtomCore(cCtx, h2x, CCY, 44, H_COL2, 'H');
+
+        // 이동 중 전자
+        const x1 = e1Start.x + (e1End.x - e1Start.x)*ease;
+        const y1 = e1Start.y + (e1End.y - e1Start.y)*ease;
+        const x2 = e2Start.x + (e2End.x - e2Start.x)*ease;
+        const y2 = e2Start.y + (e2End.y - e2Start.y)*ease;
+
+        // 잔상
+        for (let i=1; i<=5; i++) {
+            const tt = Math.max(0, ease - i*0.12);
+            cCtx.save(); cCtx.globalAlpha = 0.35-i*0.06;
+            drawElectronBig(cCtx, e1Start.x+(e1End.x-e1Start.x)*tt, e1Start.y+(e1End.y-e1Start.y)*tt, '#aaff88', HE_SIZE*0.7);
+            drawElectronBig(cCtx, e2Start.x+(e2End.x-e2Start.x)*tt, e2Start.y+(e2End.y-e2Start.y)*tt, '#88ddff', HE_SIZE*0.7);
+            cCtx.restore();
+        }
+
+        drawElectronBig(cCtx, x1, y1, '#aaff88', HE_SIZE);
+        drawElectronBig(cCtx, x2, y2, '#88ddff', HE_SIZE);
+
+        if (t < 1) {
+            txt(cCtx, CW/2, 34, '🤝 전자들이 두 원자 사이로 모이고 있어요!', '#ffd700', 17, true);
+        } else {
+            // 완성 상태
+            cCtx.clearRect(0,0,CW,CH);
+            drawShell(cCtx, h1x, CCY, H_SHELL_R, H_COL1, 0.4);
+            drawShell(cCtx, h2x, CCY, H_SHELL_R, H_COL2, 0.4);
+            drawAtomCore(cCtx, h1x, CCY, 44, H_COL1, 'H');
+            drawAtomCore(cCtx, h2x, CCY, 44, H_COL2, 'H');
+            // 공유 전자쌍 타원
+            cCtx.save();
+            cCtx.strokeStyle = '#ffd700'; cCtx.lineWidth = 2.5;
+            cCtx.setLineDash([5,4]);
+            cCtx.beginPath(); cCtx.ellipse(CW/2, CCY, 28, 46, 0, 0, Math.PI*2); cCtx.stroke();
+            cCtx.setLineDash([]);
+            cCtx.restore();
+            drawElectronBig(cCtx, CW/2-16, CCY-16, '#aaff88', HE_SIZE);
+            drawElectronBig(cCtx, CW/2+16, CCY+16, '#88ddff', HE_SIZE);
+            txt(cCtx, CW/2, 34, '✅ 공유 전자쌍 형성! 두 전자가 가운데에 모였어요', '#ffd700', 17, true);
+            txt(cCtx, CW/2, CCY-90, '공유 전자쌍', '#ffd700', 15, true);
+            txt(cCtx, h1x, CCY+135, 'H 원자 ①', H_COL1, 15, true);
+            txt(cCtx, h2x, CCY+135, 'H 원자 ②', H_COL2, 15, true);
+            return;
+        }
+
+        covAnimId = requestAnimationFrame(frame);
+    }
+    covAnimId = requestAnimationFrame(frame);
+}
+
+function drawCovStep3() {
+    cCtx.clearRect(0,0,CW,CH);
+    const h1x = CW/2 - 110, h2x = CW/2 + 110;
+
+    // 전체 분자 껍질
+    cCtx.save();
+    cCtx.strokeStyle = '#ffd700'; cCtx.lineWidth = 2.5;
+    cCtx.setLineDash([7,5]);
+    const g = cCtx.createRadialGradient(CW/2, CCY, 40, CW/2, CCY, 130);
+    g.addColorStop(0,'rgba(255,215,0,0.08)');
+    g.addColorStop(1,'rgba(255,215,0,0)');
+    cCtx.fillStyle = g;
+    cCtx.beginPath(); cCtx.ellipse(CW/2, CCY, 130, 100, 0, 0, Math.PI*2);
+    cCtx.fill(); cCtx.stroke();
+    cCtx.setLineDash([]);
+    cCtx.restore();
+
+    // 결합선
+    cCtx.save();
+    cCtx.strokeStyle = 'rgba(255,215,0,0.5)';
+    cCtx.lineWidth = 18; cCtx.lineCap = 'round';
+    cCtx.beginPath(); cCtx.moveTo(h1x+44, CCY); cCtx.lineTo(h2x-44, CCY); cCtx.stroke();
+    cCtx.restore();
+
+    drawAtomCore(cCtx, h1x, CCY, 44, H_COL1, 'H');
+    drawAtomCore(cCtx, h2x, CCY, 44, H_COL2, 'H');
+
+    // 공유 전자쌍
+    cCtx.save();
+    cCtx.strokeStyle = '#ffd700'; cCtx.lineWidth = 2;
+    cCtx.setLineDash([4,3]);
+    cCtx.beginPath(); cCtx.ellipse(CW/2, CCY, 28, 44, 0, 0, Math.PI*2); cCtx.stroke();
+    cCtx.setLineDash([]);
+    cCtx.restore();
+
+    drawElectronBig(cCtx, CW/2-15, CCY-15, '#aaff88', HE_SIZE);
+    drawElectronBig(cCtx, CW/2+15, CCY+15, '#88ddff', HE_SIZE);
+
+    // 라벨 설명
+    cCtx.save();
+    cCtx.setLineDash([4,3]);
+    cCtx.strokeStyle = 'rgba(255,215,0,0.5)'; cCtx.lineWidth = 1.5;
+    cCtx.beginPath(); cCtx.moveTo(CW/2, CCY-50); cCtx.lineTo(CW/2, CCY-90); cCtx.stroke();
+    cCtx.setLineDash([]);
+    cCtx.restore();
+    txt(cCtx, CW/2, CCY-105, '공유 전자쌍 (2개)', '#ffd700', 15, true);
+
+    // 완성 배너
+    cCtx.save();
+    const bw=420, bh=50, bx=CW/2-bw/2, by=CH-78;
+    const bg = cCtx.createLinearGradient(bx,by,bx+bw,by);
+    bg.addColorStop(0,'rgba(68,221,136,0.2)');
+    bg.addColorStop(0.5,'rgba(68,221,136,0.35)');
+    bg.addColorStop(1,'rgba(68,221,136,0.2)');
+    cCtx.fillStyle=bg; cCtx.strokeStyle='#44dd88'; cCtx.lineWidth=2;
+    roundRect(cCtx,bx,by,bw,bh,13); cCtx.fill(); cCtx.stroke();
+    cCtx.restore();
+
+    txt(cCtx, CW/2, CH-54, '🎉  H₂ 분자 완성! 공유결합 형성!', '#44dd88', 19, true);
+    txt(cCtx, CW/2, CH-28, '전자 2개를 공유하는 단일 공유결합 (H — H)', '#ccc', 14, false);
+    txt(cCtx, CW/2, 34, 'H₂ 분자: 두 H 원자가 전자를 함께 공유하여 결합 완성!', '#88ffbb', 16, true);
+    txt(cCtx, h1x, CCY+135, 'H 원자 ①', H_COL1, 15, true);
+    txt(cCtx, h2x, CCY+135, 'H 원자 ②', H_COL2, 15, true);
+}
+
+const covMsgs = [
+    'H 원자 2개가 있어요. 수소는 <span>전자껍질이 1개</span>이고 각각 <span>전자 1개</span>씩 가지고 있어요. 전자가 2개가 되면 헬륨(He)처럼 안정해져요!',
+    '두 H 원자가 <span>서로 가까이 접근</span>하고 있어요! 각자의 전자가 상대방 원자핵에도 끌리기 시작해요.',
+    '두 H 원자의 전자가 <span>가운데로 모여</span> 함께 공유되기 시작했어요! 노란 타원 안의 전자 2개가 두 원자 모두의 것이에요. 이게 <span>공유 전자쌍</span>이에요!',
+    '전자 2개를 완전히 공유하며 <span>H₂ 분자</span>가 완성됐어요! 이처럼 전자를 공유해 결합하는 것을 <span>공유결합</span>이라고 해요! 🎉'
+];
+
+function covalentNext() {
+    if (covalentStep >= 3) return;
+    covalentStep++;
+    updateDots('cov-dot-', covalentStep, 4);
+    setInfo('covalentInfo', covMsgs[covalentStep]);
+
+    if (covalentStep===1) animateCovApproach();
+    else if (covalentStep===2) animateCovShare();
+    else if (covalentStep===3) drawCovStep3();
+
+    if (covalentStep===3) {
+        const btn = document.getElementById('covalentNextBtn');
+        btn.textContent='✅ 완료!'; btn.disabled=true;
+    }
+}
+
+function covalentReset() {
+    if (covAnimId) { cancelAnimationFrame(covAnimId); covAnimId=null; }
+    covalentStep=0;
+    const btn = document.getElementById('covalentNextBtn');
+    btn.textContent='▶ 다음 단계'; btn.disabled=false;
+    updateDots('cov-dot-',0,4);
+    setInfo('covalentInfo','<span>▶ 다음 단계</span> 버튼을 눌러 공유결합 과정을 시작하세요!');
+    drawCovStep0();
+}
+
+// =============================================
+//  초기 렌더
+// =============================================
+drawIonicStep0();
+drawCovStep0();
+</script>
+</body>
+</html>
